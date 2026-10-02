@@ -13,13 +13,20 @@ from ultralytics import YOLO
 
 app = FastAPI(title="YOLO Object Detection API")
 
+# Allow request from frontend public domain
+allowed_origins = ["http://localhost:5173"] # Default for local development
+
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url and frontend_url.strip():
+    allowed_origins.append(frontend_url.strip)
+
 # Absolute base directory setup
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # Configure CORS for React frontend (default: http://localhost:5173)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
