@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const API_BASE = "http://localhost:8000";
+// Use environment variable if available (e.g. on Render), otherwise fallback to localhost
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export default function App() {
   const [file, setFile] = useState(null);

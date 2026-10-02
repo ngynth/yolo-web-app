@@ -79,7 +79,12 @@ async def add_request_id_and_log(request: Request, call_next):
         latency=process_time
     )
     return response
-
+    
+# Response to root request from Render
+@app.get("/")
+def read_root():
+    return {"message": "YOLO API is running!", "health": "/health", "docs": "/docs"}
+    
 # Ignore the favicon.ico requests in logs
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
