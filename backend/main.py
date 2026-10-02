@@ -5,11 +5,12 @@ import time
 import uuid
 import cv2
 import torch
-from fastapi import FastAPI, File, HTTPException, UploadFile, status
+from fastapi import FastAPI, File, HTTPException, UploadFile, status, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import Response
 from ultralytics import YOLO
+from logger import log_request_info
 
 app = FastAPI(title="YOLO Object Detection API")
 
@@ -18,7 +19,7 @@ allowed_origins = ["http://localhost:5173"] # Default for local development
 
 frontend_url = os.getenv("FRONTEND_URL")
 if frontend_url and frontend_url.strip():
-    allowed_origins.append(frontend_url.strip)
+    allowed_origins.append(frontend_url.strip())
 
 # Absolute base directory setup
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -49,6 +50,35 @@ MODEL.to(DEVICE)
 ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/jpg"]
 ALLOWED_VIDEO_TYPES = ["video/mp4"]
 MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB limit
+
+model_loaded = True  # True if YOLO model is successfully loaded
+
+@app.get("/ready")
+def readiness_check():
+    if model_loaded:
+        return {"status": "ready"}
+    raise HTTPException(status_code=503, detail="Model not loaded yet")
+
+# Global exception handler for unexpected errors
+@app.middleware("http")
+async def add_request_id_and_log(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    start_time = time.time()
+    
+    response = await call_next(request)
+    
+    process_time = time.time() - start_time
+    response.headers["X-Request-ID"] = request_id
+    
+    # Log thông tin request
+    log_request_info(
+        request_id=request_id,
+        route=request.url.path,
+        method=request.method,
+        status_code=response.status_code,
+        latency=process_time
+    )
+    return response
 
 # Ignore the favicon.ico requests in logs
 @app.get("/favicon.ico", include_in_schema=False)
