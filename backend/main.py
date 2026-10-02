@@ -15,7 +15,10 @@ from logger import log_request_info
 app = FastAPI(title="YOLO Object Detection API")
 
 # Allow request from frontend public domain
-allowed_origins = ["http://localhost:5173"] # Default for local development
+allowed_origins = [
+    "http://localhost:5173",                     # Local Vite dev server
+    "https://yolo-web-app-wugs.onrender.com",     # Deployed Render frontend
+]
 
 frontend_url = os.getenv("FRONTEND_URL")
 if frontend_url and frontend_url.strip():
