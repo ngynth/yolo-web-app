@@ -19,7 +19,7 @@ allowed_origins = ["http://localhost:5173"] # Default for local development
 
 frontend_url = os.getenv("FRONTEND_URL")
 if frontend_url and frontend_url.strip():
-    allowed_origins.append(frontend_url.strip)
+    allowed_origins.append(frontend_url.strip())
 
 # Absolute base directory setup
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
