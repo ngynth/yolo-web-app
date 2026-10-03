@@ -21,6 +21,9 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-download YOLO weights during build to leverage Docker caching
+RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
+
 # Copy backend source files
 COPY . .
 
