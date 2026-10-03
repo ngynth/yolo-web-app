@@ -6,6 +6,7 @@ import uuid
 import cv2
 import torch
 import io
+import gc
 from PIL import Image
 from fastapi import FastAPI, File, HTTPException, UploadFile, status, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -166,7 +167,7 @@ def detect_image(file: UploadFile = File(...), conf_threshold: float = 0.25):
 
 @app.post("/api/detect/video")
 def detect_video(file: UploadFile = File(...), conf_threshold: float = 0.25):
-    """Short video detection endpoint."""
+    """Short video detection endpoint optimized for low memory environments."""
     # File type validation
     if file.content_type not in ALLOWED_VIDEO_TYPES:
         raise HTTPException(
@@ -187,23 +188,37 @@ def detect_video(file: UploadFile = File(...), conf_threshold: float = 0.25):
         f.write(contents)
 
     raw_output_path = os.path.join(BASE_DIR, f"raw_{uuid.uuid4().hex}.mp4")
+    
     try:
         start_time = time.time()
         cap = cv2.VideoCapture(temp_path)
 
-        fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        orig_fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
+        orig_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        orig_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        # Prepare intermediate output video writer  
+        # Downscale video frame resolution to max 640px to prevent RAM OOM
+        max_dim = 640
+        if max(orig_width, orig_height) > max_dim:
+            scale = max_dim / float(max(orig_width, orig_height))
+            out_width = int(orig_width * scale)
+            out_height = int(orig_height * scale)
+        else:
+            out_width, out_height = orig_width, orig_height
+
+        # Ensure even dimensions for ffmpeg H.264 encoding compatibility
+        out_width = out_width if out_width % 2 == 0 else out_width - 1
+        out_height = out_height if out_height % 2 == 0 else out_height - 1
+
+        # Prepare intermediate output video writer
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        out = cv2.VideoWriter(raw_output_path, fourcc, fps, (width, height))
+        out = cv2.VideoWriter(raw_output_path, fourcc, orig_fps, (out_width, out_height))
 
         class_counts = {}
         total_frames = 0
         
-        # Frame skipping setup (processes every 2nd frame)
-        frame_skip = 2
+        # Frame skipping setup (process 1 frame every 4 frames)
+        frame_skip = 4
         last_annotated_frame = None
 
         while cap.isOpened():
@@ -213,8 +228,18 @@ def detect_video(file: UploadFile = File(...), conf_threshold: float = 0.25):
 
             total_frames += 1
 
+            # Scale frame in-memory immediately
+            if (out_width, out_height) != (orig_width, orig_height):
+                frame = cv2.resize(frame, (out_width, out_height), interpolation=cv2.INTER_AREA)
+
             if total_frames % frame_skip == 1 or last_annotated_frame is None:
-                results = MODEL.predict(source=frame, conf=conf_threshold, device=DEVICE, verbose=False)
+                results = MODEL.predict(
+                    source=frame, 
+                    conf=conf_threshold, 
+                    device=DEVICE, 
+                    imgsz=640,
+                    verbose=False
+                )
                 last_annotated_frame = results[0].plot()
 
                 for box in results[0].boxes:
@@ -225,8 +250,12 @@ def detect_video(file: UploadFile = File(...), conf_threshold: float = 0.25):
 
         cap.release()
         out.release()
+        
+        # Explicit release & cleanup of OpenCV objects before FFmpeg
+        del cap, out
+        gc.collect()
 
-        # Re-encode video using ffmpeg for direct web streaming
+        # Re-encode video using ffmpeg with ultrafast preset for web streaming
         output_filename = f"detected_{uuid.uuid4().hex}.mp4"
         output_path = os.path.join(UPLOAD_DIR, output_filename)
 
@@ -234,6 +263,7 @@ def detect_video(file: UploadFile = File(...), conf_threshold: float = 0.25):
             "ffmpeg", "-y",
             "-i", raw_output_path,
             "-vcodec", "libx264",
+            "-preset", "ultrafast",
             "-pix_fmt", "yuv420p",
             "-movflags", "+faststart",
             output_path
@@ -254,3 +284,4 @@ def detect_video(file: UploadFile = File(...), conf_threshold: float = 0.25):
             os.remove(temp_path)
         if os.path.exists(raw_output_path):
             os.remove(raw_output_path)
+        gc.collect()
