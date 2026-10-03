@@ -112,7 +112,7 @@ def detect_image(file: UploadFile = File(...), conf_threshold: float = 0.25):
         )
 
     # File size validation
-    contents = await file.read()
+    contents = file.file.read()
     if len(contents) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -175,7 +175,7 @@ def detect_video(file: UploadFile = File(...), conf_threshold: float = 0.25):
         )
 
     # File size validation
-    contents = await file.read()
+    contents = file.file.read()
     if len(contents) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
