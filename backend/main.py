@@ -5,6 +5,8 @@ import time
 import uuid
 import cv2
 import torch
+import io
+from PIL import Image
 from fastapi import FastAPI, File, HTTPException, UploadFile, status, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -100,7 +102,7 @@ def health_check():
 
 
 @app.post("/api/detect/image")
-async def detect_image(file: UploadFile = File(...), conf_threshold: float = 0.25):
+def detect_image(file: UploadFile = File(...), conf_threshold: float = 0.25):
     """Image detection endpoint."""
     # File type validation
     if file.content_type not in ALLOWED_IMAGE_TYPES:
@@ -110,7 +112,7 @@ async def detect_image(file: UploadFile = File(...), conf_threshold: float = 0.2
         )
 
     # File size validation
-    contents = await file.read()
+    contents = file.file.read()
     if len(contents) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -119,8 +121,12 @@ async def detect_image(file: UploadFile = File(...), conf_threshold: float = 0.2
 
     temp_path = os.path.join(BASE_DIR, f"temp_{uuid.uuid4().hex}.jpg")
     try:
-        with open(temp_path, "wb") as f:
-            f.write(contents)
+        # Resize image in memory to max 1280x1280 before saving to reduce CPU/RAM usage
+        img = Image.open(io.BytesIO(contents))
+        img.thumbnail((1280, 1280))
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        img.save(temp_path, format="JPEG", quality=85)
 
         start_time = time.time()
         results = MODEL.predict(source=temp_path, conf=conf_threshold, device=DEVICE)
@@ -159,7 +165,7 @@ async def detect_image(file: UploadFile = File(...), conf_threshold: float = 0.2
 
 
 @app.post("/api/detect/video")
-async def detect_video(file: UploadFile = File(...), conf_threshold: float = 0.25):
+def detect_video(file: UploadFile = File(...), conf_threshold: float = 0.25):
     """Short video detection endpoint."""
     # File type validation
     if file.content_type not in ALLOWED_VIDEO_TYPES:
@@ -169,7 +175,7 @@ async def detect_video(file: UploadFile = File(...), conf_threshold: float = 0.2
         )
 
     # File size validation
-    contents = await file.read()
+    contents = file.file.read()
     if len(contents) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -208,7 +214,6 @@ async def detect_video(file: UploadFile = File(...), conf_threshold: float = 0.2
             total_frames += 1
 
             if total_frames % frame_skip == 1 or last_annotated_frame is None:
-                # Enhancement A: Explicit hardware acceleration parameter
                 results = MODEL.predict(source=frame, conf=conf_threshold, device=DEVICE, verbose=False)
                 last_annotated_frame = results[0].plot()
 
