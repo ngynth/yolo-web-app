@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-// Use environment variable if available (e.g. on Render), otherwise fallback to localhost
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export default function App() {
@@ -54,17 +53,26 @@ export default function App() {
     <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px", fontFamily: "sans-serif" }}>
       <h1>YOLO Object Detection Web App</h1>
 
+      {/* Fixed Media Type Form Field */}
       <div style={{ marginBottom: "15px" }}>
-        <label>Media Type: </label>
-        <select value={mediaType} onChange={(e) => setMediaType(e.target.value)}>
+        <label htmlFor="media-type-select">Media Type: </label>
+        <select 
+          id="media-type-select"
+          name="mediaType"
+          value={mediaType} 
+          onChange={(e) => setMediaType(e.target.value)}
+        >
           <option value="image">Image (JPG, PNG)</option>
           <option value="video">Short Video (MP4)</option>
         </select>
       </div>
 
+      {/* Fixed Confidence Threshold Form Field */}
       <div style={{ marginBottom: "15px" }}>
-        <label>Confidence Threshold: {confThreshold}</label>
+        <label htmlFor="conf-threshold-input">Confidence Threshold: {confThreshold}</label>
         <input 
+          id="conf-threshold-input"
+          name="confThreshold"
           type="range" 
           min="0.1" 
           max="0.9" 
@@ -74,8 +82,16 @@ export default function App() {
         />
       </div>
 
+      {/* Fixed File Upload Input */}
       <div style={{ marginBottom: "15px" }}>
-        <input type="file" accept={mediaType === 'image' ? 'image/*' : 'video/*'} onChange={handleFileChange} />
+        <label htmlFor="file-upload-input" style={{ display: 'none' }}>Upload File</label>
+        <input 
+          id="file-upload-input"
+          name="fileUpload"
+          type="file" 
+          accept={mediaType === 'image' ? 'image/*' : 'video/*'} 
+          onChange={handleFileChange} 
+        />
         <button onClick={handleUpload} disabled={loading || !file}>
           {loading ? "Processing..." : "Detect Objects"}
         </button>
