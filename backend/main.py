@@ -11,7 +11,6 @@ from PIL import Image
 from fastapi import FastAPI, File, HTTPException, UploadFile, status, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi import Response
 from ultralytics import YOLO
 from logger import log_request_info
 
