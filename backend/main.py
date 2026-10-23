@@ -17,7 +17,7 @@ from logger import log_request_info
 app = FastAPI(title="YOLO Object Detection API")
 
 #Absolute base directory setup
-BASE_DIR = os.path.dirname(os.path.realpath(_file_))
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # Allow request from frontend public domain
 allowed_origins = [
