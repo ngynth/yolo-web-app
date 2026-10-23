@@ -16,6 +16,9 @@ from logger import log_request_info
 
 app = FastAPI(title="YOLO Object Detection API")
 
+#Absolute base directory setup
+BASE_DIR = os.path.dirname(os.path.realpath(_file_))
+
 # Allow request from frontend public domain
 allowed_origins = [
     "http://localhost:5173",                     # Local Vite dev server
@@ -25,9 +28,6 @@ allowed_origins = [
 frontend_url = os.getenv("FRONTEND_URL")
 if frontend_url and frontend_url.strip():
     allowed_origins.append(frontend_url.strip())
-
-# Absolute base directory setup
-BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # Configure CORS for React frontend (default: http://localhost:5173)
 app.add_middleware(
